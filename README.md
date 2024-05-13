@@ -20,5 +20,5 @@ All bedrock patterns are in versions 1.18+ dependent on the world seed in some c
 Even though the world seed is a 64-bit number, the nether only uses 48 bottom bits of it along with using much more simple random number generator that is easier to crack.
 
 So the mod first cracks the "structure seed" (48 bottom bits of the world seed) from the nether bedrock roof and floor.
-Then it goes through all 2^16 combinations for the 16 bottom bits and checks it against the overworld bedrock hopefully resulting in getting the world seed.
+Then it goes through all 2^16 combinations for the 16 upper bits and checks it against the overworld bedrock hopefully resulting in getting the world seed.
 
