@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "bedrockcracker",
+  "version": "${version}",
+  "name": "BedrockCracker",
+  "description": "",
+  "authors": [],
+  "contact": {
+    "repo": "https://github.com/miros/BedrockCracker"
+  },
+  "license": "All-Rights-Reserved",
+  "icon": "assets/bedrockcracker/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "main": [
+      "me.miran.bedrockcracker.BedrockCracker"
+    ]
+  },
+  "mixins": [
+    "bedrockcracker.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric": "*",
+    "minecraft": "${minecraft_version}"
+  }
+}
