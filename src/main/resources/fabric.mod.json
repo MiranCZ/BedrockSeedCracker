@@ -4,11 +4,13 @@
   "version": "${version}",
   "name": "BedrockCracker",
   "description": "",
-  "authors": [],
+  "authors": [
+    "MiranCZ"
+  ],
   "contact": {
-    "repo": "https://github.com/miros/BedrockCracker"
+    "repo": "https://github.com/MiranCZ/BedrockSeedCracker"
   },
-  "license": "All-Rights-Reserved",
+  "license": "MIT",
   "icon": "assets/bedrockcracker/icon.png",
   "environment": "client",
   "entrypoints": {
