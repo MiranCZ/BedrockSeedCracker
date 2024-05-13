@@ -1,3 +1,5 @@
+THIS MOD JUST USES THE BEDROCK BLOCK, IT IS FOR JAVA EDITION
+
 This is basically a java port of [MisterX's "NetherBedrockCracker"](https://github.com/19MisterX98/Nether_Bedrock_Cracker) written in rust.
 It has the addition of also being able to crack the world seed (even if the world's seed is set manually).
 
