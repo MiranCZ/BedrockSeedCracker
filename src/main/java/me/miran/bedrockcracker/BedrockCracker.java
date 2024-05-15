@@ -5,11 +5,14 @@ import me.miran.bedrockcracker.cracker.NetherCracker;
 import me.miran.bedrockcracker.cracker.OverworldCracker;
 import me.miran.bedrockcracker.util.BedrockCollector;
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.world.ClientWorld;
 import net.minecraft.text.Text;
 import net.minecraft.text.Texts;
+import net.minecraft.world.chunk.WorldChunk;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,7 +25,9 @@ public class BedrockCracker implements ModInitializer {
     @Override
     public void onInitialize() {
         CommandRegistrationCallback.EVENT.register(new CrackSeedCommand());
+
         ClientTickEvents.END_CLIENT_TICK.register(new ClientTickEndListener());
+        ClientChunkEvents.CHUNK_LOAD.register((world, chunk) -> BedrockCollector.collectBedrock(chunk));
     }
 
     public static void sendChatMessage(String message) {
