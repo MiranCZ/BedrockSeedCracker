@@ -1,5 +1,6 @@
 package me.miran.bedrockcracker.util;
 
+import me.miran.bedrockcracker.BedrockCracker;
 import net.minecraft.block.Blocks;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.chunk.WorldChunk;
@@ -9,13 +10,15 @@ import java.util.List;
 
 public class BedrockCollector {
 
+    private static final int NETHER_BEDROCK_SIZE = 128;
+    private static final int OVERWORLD_BEDROCK_SIZE = 512;
+
     private static final HashSet<BlockPos> netherBedrockRoof = new HashSet<>();
     private static final HashSet<BlockPos> netherBedrockFloor = new HashSet<>();
     private static final HashSet<BlockPos> overworldBedrock = new HashSet<>();
 
-    private static final int NETHER_BEDROCK_SIZE = 64;
-    private static final int OVERWORLD_BEDROCK_SIZE = 512;
-
+    private static boolean netherBedrockCollected = false;
+    private static boolean overworldBedrockCollected = false;
 
     public static void collectBedrock(WorldChunk chunk) {
         WorldHelper.Dimension dimension = WorldHelper.getDimension();
@@ -45,8 +48,22 @@ public class BedrockCollector {
                     }
                 }
             }
+
+            if (netherBedrockFloor.size() >= NETHER_BEDROCK_SIZE || netherBedrockRoof.size() >= NETHER_BEDROCK_SIZE) {
+                if (!netherBedrockCollected) {
+                    netherBedrockCollected = true;
+                    BedrockCracker.sendChatMessage("§2Bedrock from the nether collected! " +
+                            "§7(floor: "+netherBedrockFloor.size()+", roof: "+netherBedrockRoof.size()+")");
+                }
+            }
         } else if (dimension == WorldHelper.Dimension.OVERWORLD) {
-            if (overworldBedrock.size() > OVERWORLD_BEDROCK_SIZE) return;
+            if (overworldBedrock.size() > OVERWORLD_BEDROCK_SIZE) {
+                if (!overworldBedrockCollected) {
+                    overworldBedrockCollected = true;
+                    BedrockCracker.sendChatMessage("§2Bedrock from overworld collected! §7("+overworldBedrock.size()+")");
+                }
+                return;
+            }
 
             for (int x = 0; x < 16; x++) {
                     for (int z = 0; z < 16; z++) {
@@ -62,10 +79,13 @@ public class BedrockCollector {
 
     }
 
-    public static void clear() {
+    public static void reset() {
         netherBedrockFloor.clear();
         netherBedrockRoof.clear();
         overworldBedrock.clear();
+
+        overworldBedrockCollected = false;
+        netherBedrockCollected = false;
     }
 
     public static List<BlockPos> getNetherRoofBedrock() {

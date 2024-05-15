@@ -20,7 +20,7 @@ public class ClientTickEndListener implements ClientTickEvents.EndTick {
         // if we are not in a world, and we were before -> clear the cache
         if (world == null) {
             if (needsChange) {
-                BedrockCollector.clear();
+                BedrockCollector.reset();
                 needsChange = false;
             }
         } else {
