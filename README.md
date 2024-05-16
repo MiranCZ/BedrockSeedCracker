@@ -23,3 +23,52 @@ Even though the world seed is a 64-bit number, the nether only uses 48 bottom bi
 So the mod first cracks the "structure seed" (48 bottom bits of the world seed) from the nether bedrock roof and floor.
 Then it goes through all 2^16 combinations for the 16 upper bits and checks it against the overworld bedrock hopefully resulting in getting the world seed.
 
+# Usage in other mods
+You can use this mod through [jitpack](https://jitpack.io/). 
+
+So first include the jitpack repository
+```groovy
+repositories {
+	mavenCentral()
+	maven { url 'https://jitpack.io' }
+}
+```
+And include `BedrockCracker` in your dependencies
+```groovy
+dependencies {
+    modImplementation (include('com.github.MiranCZ:BedrockSeedCracker:master-SNAPSHOT'))
+}
+```
+
+You can then implement the `BedrockCrackerController` interface
+```java
+public class Controller implements BedrockCrackerController {
+
+    @Override
+    public void setup(BedrockCrackerSettings settings) {
+        // you can change setting of BedrockCracker here
+    }
+
+    @Override
+    public void seedCrackedEvent(long worldSeed) {
+        // called when the world seed is cracked
+    }
+
+    @Override
+    public int getPriority() {
+        // optional, uses 100 if not overridden
+        return 150;
+    }
+}
+```
+and then just specify your controller in the `fabric.mod.json` file
+```json
+{
+  "entrypoints": {
+    "bedrockcracker": [
+      "path.to.controller.Controller"
+    ]
+  }
+}
+```
+
