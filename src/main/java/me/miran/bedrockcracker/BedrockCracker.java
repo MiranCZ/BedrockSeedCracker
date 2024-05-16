@@ -1,5 +1,9 @@
 package me.miran.bedrockcracker;
 
+import me.miran.bedrockcracker.api.BedrockCrackerController;
+import me.miran.bedrockcracker.api.settings.BedrockCrackerSettings;
+import me.miran.bedrockcracker.api.DefaultBedrockCrackerController;
+import me.miran.bedrockcracker.api.settings.CrackStartType;
 import me.miran.bedrockcracker.command.CrackSeedCommand;
 import me.miran.bedrockcracker.cracker.NetherCracker;
 import me.miran.bedrockcracker.cracker.OverworldCracker;
@@ -8,13 +12,12 @@ import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.world.ClientWorld;
 import net.minecraft.text.Text;
-import net.minecraft.text.Texts;
-import net.minecraft.world.chunk.WorldChunk;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 public class BedrockCracker implements ModInitializer {
@@ -22,13 +25,37 @@ public class BedrockCracker implements ModInitializer {
 
     private static final String CHAT_PREFIX = "§8[§5§oBedrockCracker§8]§r ";
 
+    private static final List<BedrockCrackerController> controllers = new ArrayList<>();
+
+    private static final BedrockCrackerSettings settings = new BedrockCrackerSettings();
+
+
     @Override
     public void onInitialize() {
-        CommandRegistrationCallback.EVENT.register(new CrackSeedCommand());
+        loadControllersAndExecuteSetup();
+
+        if (settings.crackStartType == CrackStartType.COMMAND) {
+            CommandRegistrationCallback.EVENT.register(new CrackSeedCommand());
+        }
 
         ClientTickEvents.END_CLIENT_TICK.register(new ClientTickEndListener());
         ClientChunkEvents.CHUNK_LOAD.register((world, chunk) -> BedrockCollector.collectBedrock(chunk));
+
+
     }
+
+    private void loadControllersAndExecuteSetup() {
+        controllers.addAll(FabricLoader.getInstance().getEntrypoints("bedrockcracker", BedrockCrackerController.class));
+        controllers.add(new DefaultBedrockCrackerController());
+
+        controllers.sort(Comparator.comparingInt(BedrockCrackerController::getPriority));
+
+        for (BedrockCrackerController controller : controllers) {
+            controller.setup(settings);
+        }
+    }
+
+
 
     public static void sendChatMessage(String message) {
         sendChatMessage(Text.of(message));
@@ -36,6 +63,8 @@ public class BedrockCracker implements ModInitializer {
 
     public static void sendChatMessage(Text message) {
         if (MinecraftClient.getInstance().player == null) return;
+
+        if (!settings.logProgress) return;
 
         MinecraftClient.getInstance().player.sendMessage(Text.literal(CHAT_PREFIX).append(message));
     }
@@ -76,7 +105,11 @@ public class BedrockCracker implements ModInitializer {
         if (worldSeeds.isEmpty()) {
             sendChatMessage("§cSOMETHING WE WRONG :( no world seed was found");
         } else if (worldSeeds.size() == 1) {
-            sendChatMessage(Text.literal("World seed: ").append(Texts.bracketedCopyable(worldSeeds.get(0).toString())));
+
+            for (BedrockCrackerController controller : controllers) {
+                controller.seedCrackedEvent(worldSeeds.get(0));
+            }
+
         } else {
             sendChatMessage("§4Found multiple (" + worldSeeds.size() + ") world seeds :(");
 
