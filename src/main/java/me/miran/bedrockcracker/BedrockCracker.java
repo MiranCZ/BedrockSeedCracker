@@ -40,8 +40,10 @@ public class BedrockCracker implements ModInitializer {
 
         ClientTickEvents.END_CLIENT_TICK.register(new ClientTickEndListener());
         ClientChunkEvents.CHUNK_LOAD.register((world, chunk) -> BedrockCollector.collectBedrock(chunk));
+    }
 
-
+    public static CrackStartType getCrackStartType() {
+        return settings.crackStartType;
     }
 
     private void loadControllersAndExecuteSetup() {

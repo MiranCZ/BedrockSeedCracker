@@ -8,7 +8,8 @@ import net.minecraft.text.Texts;
 
 /**
  * the default controller, present mainly for the cases that there aren't any other ones
- */
+ * should initialize ALL settings
+ * */
 public class DefaultBedrockCrackerController implements BedrockCrackerController {
 
     @Override
