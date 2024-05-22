@@ -19,4 +19,9 @@ public class CrackSeedCommand implements CommandRegistrationCallback {
 
         return 0;
     }
+    @Override
+    public boolean canCommandSenderUseCommand(int permLevel,
+                                   java.lang.String commandName){
+        return true;
+    }
 }
