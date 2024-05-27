@@ -9,6 +9,7 @@ import me.miran.bedrockcracker.cracker.NetherCracker;
 import me.miran.bedrockcracker.cracker.OverworldCracker;
 import me.miran.bedrockcracker.util.BedrockCollector;
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
@@ -35,15 +36,13 @@ public class BedrockCracker implements ModInitializer {
         loadControllersAndExecuteSetup();
 
         if (settings.crackStartType == CrackStartType.COMMAND) {
-            CommandRegistrationCallback.EVENT.register(new CrackSeedCommand());
+            ClientCommandRegistrationCallback.EVENT.register(new CrackSeedCommand());
         }
 
         ClientTickEvents.END_CLIENT_TICK.register(new ClientTickEndListener());
         ClientChunkEvents.CHUNK_LOAD.register((world, chunk) -> BedrockCollector.collectBedrock(chunk));
-    }
 
-    public static CrackStartType getCrackStartType() {
-        return settings.crackStartType;
+
     }
 
     private void loadControllersAndExecuteSetup() {
