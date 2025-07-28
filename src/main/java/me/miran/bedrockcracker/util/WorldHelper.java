@@ -19,7 +19,9 @@ public class WorldHelper {
             case "minecraft:the_end" -> {
                 return Dimension.END;
             }
-            default -> throw new IllegalStateException("Unexpected value: " + dimensionID);
+            default -> {
+                return null;
+            }
         }
     }
 
