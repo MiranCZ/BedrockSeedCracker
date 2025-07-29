@@ -1,4 +1,4 @@
-package me.miran.bedrockcracker.cracker;
+package me.miran.bedrockcracker.cracker.nether;
 
 import me.miran.bedrockcracker.util.BedrockCollector;
 import me.miran.bedrockcracker.cracker.util.BedrockType;
@@ -8,14 +8,13 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 
 import java.util.*;
-import java.util.concurrent.CountDownLatch;
 
 import static me.miran.bedrockcracker.cracker.util.CheckedRandom.*;
 
-public class NetherCracker {
+abstract class AbstractNetherCracker {
 
 
-    public static List<Long> crack() {
+    public List<Long> crack() {
         List<Test> tests = loadTests();
 
         List<Test> mainTests = new ArrayList<>(tests);
@@ -23,43 +22,11 @@ public class NetherCracker {
         mainTests.removeIf((test) -> test.y < 64);
         mainTests = mainTests.subList(0,20);
 
-        List<Long> results = new ArrayList<>();
 
         Test[] testArr = mainTests.toArray(new Test[0]);
 
 
-        int threadCount = (int) (Runtime.getRuntime().availableProcessors()*0.75);
-        threadCount = Math.max(1, threadCount);
-
-
-        long limit = 1L<<36;
-        long chunkSize = limit / threadCount;
-
-        CountDownLatch latch = new CountDownLatch(threadCount);
-
-        for (int t = 0; t <threadCount; t++) {
-            long start = t * chunkSize;
-            long end;
-
-            if (t == threadCount - 1) { // Last thread handles remaining work
-                end = limit;
-            } else {
-                end = (t + 1) * chunkSize;
-            }
-
-            new Thread(() -> {
-                for (long i = start; i < end; i++) {
-                    runChecks(testArr, i << 12, 12, results);
-                }
-                latch.countDown();
-            }).start();
-        }
-
-        try {
-            latch.await();
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
+        List<Long> results = getSeedCandidates(testArr);
 
         List<Long> structureSeeds = new ArrayList<>();
 
@@ -81,8 +48,10 @@ public class NetherCracker {
         return structureSeeds;
     }
 
+    protected abstract List<Long> getSeedCandidates(Test[] testArr);
 
-    private static void runChecks(Test[] tests,long upperBits, int unknownBits, List<Long> resultList) {
+
+    protected void runChecks(Test[] tests,long upperBits, int unknownBits, List<Long> resultList) {
         long lowerBitMask = (1L << unknownBits) - 1;
         long sub = lowerBitMask * MULTIPLY;
         long hashMask = MASK ^ lowerBitMask;
@@ -105,7 +74,7 @@ public class NetherCracker {
     }
 
 
-    private static long[] getBounds(int y) {
+    protected long[] getBounds(int y) {
         double lowerBound = 0;
         double upperBound = 1;
 
@@ -122,7 +91,7 @@ public class NetherCracker {
         return new long[]{(long) lowerBound, (long) upperBound};
     }
 
-    private static List<Test> loadTests() {
+    protected List<Test> loadTests() {
         List<BlockPos> netherBedrock = new ArrayList<>();
         netherBedrock.addAll(BedrockCollector.getNetherFloorBedrock());
         netherBedrock.addAll(BedrockCollector.getNetherRoofBedrock());
@@ -144,7 +113,7 @@ public class NetherCracker {
     }
 
 
-    private record Test(long hash,int x, int y, int z, int lowerThan, long lowerBound, long upperBound, long hashXor, long offset, long add){
+    protected record Test(long hash,int x, int y, int z, int lowerThan, long lowerBound, long upperBound, long hashXor, long offset, long add){
     }
 
 

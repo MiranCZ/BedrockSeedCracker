@@ -5,7 +5,7 @@ import me.miran.bedrockcracker.api.settings.BedrockCrackerSettings;
 import me.miran.bedrockcracker.api.DefaultBedrockCrackerController;
 import me.miran.bedrockcracker.api.settings.CrackStartType;
 import me.miran.bedrockcracker.command.CrackSeedCommand;
-import me.miran.bedrockcracker.cracker.NetherCracker;
+import me.miran.bedrockcracker.cracker.nether.NetherCracker;
 import me.miran.bedrockcracker.cracker.OverworldCracker;
 import me.miran.bedrockcracker.util.BedrockCollector;
 import net.fabricmc.api.ModInitializer;
@@ -81,7 +81,20 @@ public class BedrockCracker implements ModInitializer {
         sendChatMessage("§7Started cracking...");
 
         long startTime = System.currentTimeMillis();
-        List<Long> structureSeeds = NetherCracker.crack();
+
+        List<Long> structureSeeds;
+        try {
+            structureSeeds = NetherCracker.crack();
+        } catch (Error e) {
+            e.printStackTrace();
+            sendChatMessage("§cEncountered an error whilst trying to crack the seed!");
+
+            if (NetherCracker.fallback()) {
+                sendChatMessage("§6Tried to fallback to another cracker, retrying...");
+                crackWorldSeed();
+            }
+            return;
+        }
         sendChatMessage("§7Search finished in "+((System.currentTimeMillis() - startTime)/1000) + " seconds");
 
 

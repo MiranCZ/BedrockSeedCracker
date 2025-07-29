@@ -1,6 +1,7 @@
 plugins {
     id 'fabric-loom' version '1.6-SNAPSHOT'
     id 'maven-publish'
+    id 'com.github.johnrengelman.shadow' version '8.+'
 }
 
 apply plugin: 'maven-publish'
@@ -31,6 +32,24 @@ dependencies {
 
     // Fabric API. This is technically optional, but you probably want it anyway.
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+
+    // https://mvnrepository.com/artifact/com.aparapi/aparapi
+    shadow(implementation("com.aparapi:aparapi:3.0.2"))
+}
+
+shadowJar {
+    archiveClassifier.set("unmapped")
+
+    minimize()
+
+    configurations = [project.configurations.shadow]
+
+    from("LICENSE")
+}
+
+remapJar {
+    dependsOn shadowJar
+    inputFile = tasks.shadowJar.archiveFile
 }
 
 processResources {
