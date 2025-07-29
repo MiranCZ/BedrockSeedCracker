@@ -1,5 +1,7 @@
 package me.miran.bedrockcracker.cracker.nether;
 
+import me.miran.bedrockcracker.BedrockCracker;
+
 import java.util.List;
 
 public class NetherCracker {
@@ -32,7 +34,7 @@ public class NetherCracker {
     }
 
     private static void createImplementation() {
-        if (gpuAvailable) {
+        if (gpuAvailable && BedrockCracker.gpuAllowed()) {
             implementation = new GPUNetherCracker();
         } else {
             implementation = new DefaultNetherCracker();

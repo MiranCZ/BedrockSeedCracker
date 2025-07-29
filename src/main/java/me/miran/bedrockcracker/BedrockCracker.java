@@ -46,6 +46,10 @@ public class BedrockCracker implements ModInitializer {
         return settings.crackStartType;
     }
 
+    public static boolean gpuAllowed() {
+        return settings.allowGpuUse;
+    }
+
     private void loadControllersAndExecuteSetup() {
         controllers.addAll(FabricLoader.getInstance().getEntrypoints("bedrockcracker", BedrockCrackerController.class));
         controllers.add(new DefaultBedrockCrackerController());

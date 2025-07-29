@@ -8,7 +8,8 @@ public interface BedrockCrackerController {
     /**
      * execute exactly once, has the chance to change settings of the BedrockCracker mod on its startup
      */
-    void setup(BedrockCrackerSettings settings);
+    default void setup(BedrockCrackerSettings settings) {
+    }
 
     /**
      * called when the world seed is determined

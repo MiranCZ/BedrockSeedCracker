@@ -12,11 +12,6 @@ import net.minecraft.text.Texts;
  * */
 public class DefaultBedrockCrackerController implements BedrockCrackerController {
 
-    @Override
-    public void setup(BedrockCrackerSettings settings) {
-        settings.crackStartType = CrackStartType.COMMAND;
-        settings.logProgress = true;
-    }
 
     @Override
     public void seedCrackedEvent(long worldSeed) {
