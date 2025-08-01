@@ -1,147 +1,154 @@
 package me.miran.bedrockcracker.cracker.nether;
 
-import com.aparapi.Kernel;
-import com.aparapi.Range;
-import com.aparapi.device.Device;
-import com.aparapi.internal.kernel.KernelManager;
+import me.miran.bedrockcracker.cracker.util.jocl.Buffer;
+import me.miran.bedrockcracker.cracker.util.jocl.IntBuffer;
+import me.miran.bedrockcracker.cracker.util.jocl.LongBuffer;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.resource.Resource;
+import net.minecraft.resource.ResourceManager;
+import net.minecraft.util.Identifier;
 import org.jetbrains.annotations.NotNull;
+import org.jocl.*;
 
+import java.io.*;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
-import static me.miran.bedrockcracker.cracker.util.CheckedRandom.*;
+import static org.jocl.CL.*;
 
-class GPUNetherCracker extends AbstractNetherCracker {
+class GPUNetherCracker extends AbstractNetherCracker implements AutoCloseable {
+
+    private static boolean initialized;
+    private static boolean available;
+
+    private static cl_kernel kernel;
+    private static cl_command_queue queue;
+    private static cl_context context;
+
+    private static void init() throws IOException {
+        CL.setExceptionsEnabled(true);
+
+        cl_platform_id[] platforms = new cl_platform_id[1];
+        clGetPlatformIDs(platforms.length, platforms, null);
+        cl_platform_id platform = platforms[0];
+
+        // FIXME use a better way to choose a GPU device
+        cl_device_id[] devices = new cl_device_id[1];
+        clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 1, devices, null);
+        cl_device_id device = devices[0];
+
+        context = clCreateContext(null, 1, devices, null, null, null);
+
+        String source = readCrackerSource();
+        cl_program program = clCreateProgramWithSource(context, 1, new String[]{source}, null, null);
+        clBuildProgram(program, 0, null, null, null, null);
+
+        kernel = clCreateKernel(program, "crack", null);
+        queue = clCreateCommandQueueWithProperties(context, device, null, null);
+    }
+
+    private static String readCrackerSource() throws IOException {
+        ResourceManager resourceManager = MinecraftClient.getInstance().getResourceManager();
+        Identifier sourceId = Identifier.of("bedrockcracker", "cracking.cl");
+
+        Resource resource = resourceManager.getResourceOrThrow(sourceId);
+
+        StringBuilder source = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(resource.getInputStream()))) {
+            String line;
+
+            while ((line = reader.readLine()) != null) {
+                source.append(line).append("\n");
+            }
+        }
+
+        return source.toString();
+    }
 
 
     static boolean available() {
-        return KernelManager.instance().bestDevice().getType() == Device.TYPE.GPU;
+        if (initialized) return available;
+
+        initialized = true;
+
+        try {
+            init();
+            available = true;
+        } catch (Throwable ignored) {
+            available = false;
+        }
+
+        return available;
     }
 
     @Override
     protected @NotNull List<Long> getSeedCandidates(Test[] testArr) {
-        //FIXME 16384 is an arbitrary size
-        long[] resultsAll = new long[16384];
-        int[] resultIndex = new int[]{0};
-
-        final long[][] tests = new long[20][1];
+        final long[] tests = new long[20];
         for (int j = 0; j < testArr.length; j++) {
             Test test = testArr[j];
-            tests[j] = new long[]{test.hashXor()};
+            tests[j] = test.hashXor();
         }
 
-        int limit = 1 << 30;
 
-        CrackerKernel kernel = new CrackerKernel(tests, resultsAll, resultIndex);
-        Range range = Range.create(limit);
+        List<Long> output = new ArrayList<>();
+        int loopLimit = 1 << 6;
 
-        int loopLimit = 1<<6;
         for (int i = 0; i < loopLimit; i++) {
-
-            kernel.setLowBits(i);
-            kernel.execute(range);
-
-            System.out.println(i + "/"+ loopLimit);
+            // FIXME 16384 is an arbitrary size
+            output.addAll(calculateBatch(tests, i, 16384));
+            System.out.println(i + "/" + loopLimit);
         }
-        kernel.dispose();
 
-
-        System.out.println(Arrays.toString(resultIndex));
-        System.out.println("----------------");
-
-        List<Long> results = new ArrayList<>();
-        for (int i = 0; i < resultIndex[0]; i++) {
-            results.add(resultsAll[i]);
-        }
-        return results;
+        return output;
     }
 
 
-    private static class CrackerKernel extends Kernel {
-        private long lowBits = 0;
-        private final long[][] tests;
-        private final long[] resultsAll;
-        private final int[] resultsIndex;
+    private static List<Long> calculateBatch(long[] testsValue, int lowBitsValue, int resultsArraySize) {
+        LongBuffer lowBits = new LongBuffer(context, new long[]{lowBitsValue});
+        LongBuffer tests = new LongBuffer(context, testsValue);
+        LongBuffer results = new LongBuffer(context, resultsArraySize);
+        IntBuffer resultIndex = new IntBuffer(context, 1);
 
-        public CrackerKernel(long[][] tests, long[] resultsAll, int[] resultsIndex) {
-            this.tests = tests;
-            this.resultsAll = resultsAll;
-            this.resultsIndex = resultsIndex;
+
+        passArgs(lowBits, tests, results, resultIndex);
+
+        clEnqueueNDRangeKernel(queue, kernel, 1, null,
+                new long[]{1 << 30}, null, 0, null, null);
+
+        int[] indexArr = resultIndex.read(queue);
+        clFinish(queue); // rather call `finish` to make sure the index is the correct one
+
+        long[] output = results.read(queue, indexArr[0]);
+        clFinish(queue);
+
+        List<Long> resultsList = new ArrayList<>();
+
+        for (int i = 0; i < output.length && i < indexArr[0]; i++) {
+            long result = output[i];
+            resultsList.add(result);
         }
 
-        public void setLowBits(long value) {
-            this.lowBits = value;
-        }
+        releaseBuffers(lowBits, tests, results, resultIndex);
 
+        return resultsList;
+    }
 
-        /**
-         * <b>Warning:</b> This method assumes we are using bedrock floor and only the highest Y level of it.
-         */
-        @Override
-        public void run() {
-            int id = getGlobalId();
-
-            long[] upperBitsQueue = new long[13];
-            byte[] unknownBitsQueue = new byte[13];
-
-            int queueIndex = 0;
-
-            upperBitsQueue[0] = ((((long) id) << 6) | lowBits) << 12;
-            unknownBitsQueue[0] = 12;
-
-            while (queueIndex >= 0) {
-                final long upperBits = upperBitsQueue[queueIndex];
-                byte unknownBits = unknownBitsQueue[queueIndex];
-
-                final long lowerBitMask = (1L << unknownBits) - 1;
-                final long sub = lowerBitMask * MULTIPLY;
-                final long hashMask = MASK ^ lowerBitMask;
-
-                queueIndex--;
-
-                long compare = 225179981368524L - sub;
-                // ultimate loop unrolling in action
-                if ((((upperBits ^ tests[0][0] & hashMask) * MULTIPLY) & MASK) < compare) continue;
-                if ((((upperBits ^ tests[1][0] & hashMask) * MULTIPLY) & MASK) < compare) continue;
-                if ((((upperBits ^ tests[2][0] & hashMask) * MULTIPLY) & MASK) < compare) continue;
-                if ((((upperBits ^ tests[3][0] & hashMask) * MULTIPLY) & MASK) < compare) continue;
-                if ((((upperBits ^ tests[4][0] & hashMask) * MULTIPLY) & MASK) < compare) continue;
-                if ((((upperBits ^ tests[5][0] & hashMask) * MULTIPLY) & MASK) < compare) continue;
-                if ((((upperBits ^ tests[6][0] & hashMask) * MULTIPLY) & MASK) < compare) continue;
-                if ((((upperBits ^ tests[7][0] & hashMask) * MULTIPLY) & MASK) < compare) continue;
-                if ((((upperBits ^ tests[8][0] & hashMask) * MULTIPLY) & MASK) < compare) continue;
-                if ((((upperBits ^ tests[9][0] & hashMask) * MULTIPLY) & MASK) < compare) continue;
-                if ((((upperBits ^ tests[10][0] & hashMask) * MULTIPLY) & MASK) < compare) continue;
-                if ((((upperBits ^ tests[11][0] & hashMask) * MULTIPLY) & MASK) < compare) continue;
-                if ((((upperBits ^ tests[12][0] & hashMask) * MULTIPLY) & MASK) < compare) continue;
-                if ((((upperBits ^ tests[13][0] & hashMask) * MULTIPLY) & MASK) < compare) continue;
-                if ((((upperBits ^ tests[14][0] & hashMask) * MULTIPLY) & MASK) < compare) continue;
-                if ((((upperBits ^ tests[15][0] & hashMask) * MULTIPLY) & MASK) < compare) continue;
-                if ((((upperBits ^ tests[16][0] & hashMask) * MULTIPLY) & MASK) < compare) continue;
-                if ((((upperBits ^ tests[17][0] & hashMask) * MULTIPLY) & MASK) < compare) continue;
-                if ((((upperBits ^ tests[18][0] & hashMask) * MULTIPLY) & MASK) < compare) continue;
-                if ((((upperBits ^ tests[19][0] & hashMask) * MULTIPLY) & MASK) < compare) continue;
-
-
-                if (unknownBits == 0) {
-                    resultsAll[resultsIndex[0]++] = upperBits;
-                    continue;
-                }
-
-                unknownBits--;
-                long split = 1L << unknownBits;
-
-                queueIndex++;
-                upperBitsQueue[queueIndex] = upperBits;
-                unknownBitsQueue[queueIndex] = unknownBits;
-
-                queueIndex++;
-                upperBitsQueue[queueIndex] = upperBits | split;
-                unknownBitsQueue[queueIndex] = unknownBits;
-            }
+    private static void releaseBuffers(Buffer... buffers) {
+        for (Buffer buffer : buffers) {
+            buffer.release();
         }
     }
 
+    private static void passArgs(Buffer... buffers) {
+        for (int i = 0; i < buffers.length; i++) {
+            buffers[i].passAsArg(kernel, i);
+        }
+    }
 
+    @Override
+    public void close() {
+        clReleaseKernel(kernel);
+        clReleaseCommandQueue(queue);
+        clReleaseContext(context);
+    }
 }

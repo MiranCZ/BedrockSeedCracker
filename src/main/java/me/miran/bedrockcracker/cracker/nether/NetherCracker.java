@@ -13,7 +13,7 @@ public class NetherCracker {
     static {
         try {
             gpuAvailable = GPUNetherCracker.available();
-        } catch (NoClassDefFoundError ignored) {
+        } catch (Throwable ignored) {
             gpuAvailable = false;
         }
         createImplementation();
@@ -34,6 +34,15 @@ public class NetherCracker {
     }
 
     private static void createImplementation() {
+        // clear previous implementation if there was one
+        if (implementation instanceof AutoCloseable closable) {
+            try {
+                closable.close();
+            } catch (Exception e) {
+                e.printStackTrace(); // TODO logger
+            }
+        }
+
         if (gpuAvailable && BedrockCracker.gpuAllowed()) {
             implementation = new GPUNetherCracker();
         } else {
